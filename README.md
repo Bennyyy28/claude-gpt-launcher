@@ -13,6 +13,7 @@
   <img alt="Apple silicon" src="https://img.shields.io/badge/Apple%20silicon-native-2563EB">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5.9%2B-F05138?logo=swift&logoColor=white">
   <img alt="MCP" src="https://img.shields.io/badge/MCP-ready-7C3AED">
+  <a href="https://www.npmjs.com/package/claude-gpt-launcher"><img alt="npm" src="https://img.shields.io/npm/v/claude-gpt-launcher?logo=npm"></a>
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-16A34A">
 </p>
 
@@ -84,19 +85,18 @@ commit the resulting credential.
 
 ### 2. Install Claude GPT Launcher
 
-Until the npm package is published, install from GitHub:
-
-```zsh
-git clone https://github.com/Bennyyy28/claude-gpt-launcher.git
-cd claude-gpt-launcher
-npm install --global .
-claude-gpt-launcher install
-```
-
-The prepared npm release will reduce this to:
+Install and build from npm:
 
 ```zsh
 npx claude-gpt-launcher install
+```
+
+Or download the Apple-notarized ZIP from the
+[latest GitHub release](https://github.com/Bennyyy28/claude-gpt-launcher/releases/latest),
+verify its checksum, and move **Claude GPT.app** to Applications:
+
+```zsh
+shasum -a 256 -c Claude-GPT-Launcher-*.zip.sha256
 ```
 
 ### 3. Open a project

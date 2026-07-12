@@ -14,7 +14,7 @@ final class LauncherStore: ObservableObject {
     }
 
     var backendReady: Bool {
-        FileManager.default.isExecutableFile(atPath: TerminalLauncher.backendURL.path)
+        TerminalLauncher.backendURL() != nil
     }
 
     func chooseProject(_ url: URL) {

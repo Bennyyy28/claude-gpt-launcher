@@ -4,9 +4,10 @@
 
 The highest residual risks are npm supply-chain compromise and prompt-driven
 access to sensitive local files when processing an untrusted repository. The
-launcher now avoids install-time scripts, pins resolved executable paths,
-selects an unused localhost port, validates real repository paths, limits MCP
-work, and refuses to overwrite unrelated local artifacts. It is still a
+launcher now avoids install-time scripts, publishes through an OIDC-ready
+workflow, notarizes hardened-runtime app archives, pins resolved executable
+paths, selects an unused localhost port, validates real repository paths,
+limits MCP work, and refuses to overwrite unrelated local artifacts. It is still a
 same-user developer tool rather than an OS sandbox, so untrusted repositories
 should run in a disposable account or container.
 
@@ -41,8 +42,9 @@ Open questions that could change ranking:
   (`script/claude-gpt`).
 - MCP server: validates requests and delegates bounded plan/edit tasks
   (`Sources/ClaudeGPTMCP/`).
-- Build/package tooling: builds and ad-hoc signs the local app
-  (`script/build_and_run.sh`, `package.json`).
+- Build/package tooling: ad-hoc signs local builds and separately creates a
+  Developer ID signed, notarized, stapled, checksummed release archive
+  (`script/build_and_run.sh`, `script/release_macos.sh`, `package.json`).
 
 ### Data flows and trust boundaries
 
@@ -142,7 +144,7 @@ flowchart LR
 
 | Threat ID | Threat source | Prerequisites | Threat action | Impact | Impacted assets | Existing controls (evidence) | Gaps | Recommended mitigations | Detection ideas | Likelihood | Impact severity | Priority |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| TM-001 | npm account/package compromise | User installs a malicious release | Execute arbitrary package code | Same-user compromise | Filesystem, credentials, source | No dependencies or postinstall; `package.json` | Publisher integrity is external | Enable npm 2FA, provenance, protected release workflow, and signed Git tags | Monitor npm owner/version changes | Medium | High | High |
+| TM-001 | npm account/package compromise | User installs a malicious release | Execute arbitrary package code | Same-user compromise | Filesystem, credentials, source | No dependencies or postinstall; OIDC-ready publish workflow with provenance; Developer ID signing, notarization, stapling, and checksums for app archives | npm and Apple publisher identities remain external trust anchors | Configure npm trusted publishing, require npm 2FA, protect releases, and sign Git tags | Monitor npm owner/version changes and verify Gatekeeper/checksum results | Low | High | High |
 | TM-002 | Malicious repository content | User delegates analysis of untrusted code | Prompt injection induces out-of-repo reads | Secret or source disclosure | Filesystem, credentials | Tool allowlist and credential-directory deny rules in `ClaudeHarnessRunner.swift` | Claude Code can normally read outside cwd | Recommend container/disposable account; evaluate a real sandbox before claiming untrusted-repo safety | Audit returned paths and provider telemetry | Medium | High | High |
 | TM-003 | Overbroad model action | MCP edits explicitly enabled | Modify unintended in-repo files | Repository integrity loss | Source, Git state | Install-time edit gate, call confirmation, no Bash, Codex diff validation | Confirmation is delegated to client policy | Keep edits off by default; add per-call UI approval if Codex exposes one | Log mode, root, and changed-file summary without content | Medium | Medium | Medium |
 | TM-004 | Same-user local process | Can bind local TCP first | Capture proxy-bound traffic | Prompt/source disclosure | Repository content | Random loopback port and occupied-port fail-closed logic in `script/claude-gpt` | Port allocation still has a small race | Prefer authenticated Unix socket if proxy supports it | Record bind failures without prompt data | Low | High | Medium |
@@ -171,6 +173,8 @@ flowchart LR
 | `script/claude-gpt` | Controls executable resolution, proxy lifecycle, and environment | TM-004, TM-005 |
 | `script/install_backend.sh` | Writes an executable into the user's home | TM-006 |
 | `script/build_and_run.sh` | Replaces and signs the installed app bundle | TM-001, TM-006 |
+| `script/release_macos.sh` | Signs, notarizes, staples, verifies, and checksums public app archives | TM-001 |
+| `.github/workflows/publish-npm.yml` | Defines the tokenless npm publication trust boundary | TM-001 |
 | `Sources/ClaudeGPTMCP/MCPProjectGuard.swift` | Enforces canonical repository boundaries | TM-008 |
 | `Sources/ClaudeGPTMCP/ClaudeHarnessRunner.swift` | Defines tool, prompt, edit, and model policy | TM-002, TM-003 |
 | `Sources/ClaudeGPTMCP/CommandRunner.swift` | Handles environment, temp output, timeout, and subprocesses | TM-005, TM-007 |

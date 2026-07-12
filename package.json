@@ -4,6 +4,14 @@
   "description": "Install and manage a native macOS Claude Code launcher with a local GPT proxy and Codex MCP bridge.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bennyyy28/claude-gpt-launcher.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Bennyyy28/claude-gpt-launcher/issues"
+  },
+  "homepage": "https://github.com/Bennyyy28/claude-gpt-launcher#readme",
   "bin": {
     "claude-gpt-launcher": "npm/cli.mjs",
     "claude-gpt": "script/claude-gpt"
@@ -16,6 +24,7 @@
     "LICENSE",
     "Package.swift",
     "README.md",
+    "RELEASING.md",
     "Resources",
     "Sources",
     "Tests",
@@ -25,6 +34,7 @@
   "scripts": {
     "test": "node --test npm/cli.test.mjs && swift test",
     "pack:check": "npm pack --dry-run",
+    "release:macos": "./script/release_macos.sh",
     "prepublishOnly": "npm test && npm run pack:check"
   },
   "engines": {

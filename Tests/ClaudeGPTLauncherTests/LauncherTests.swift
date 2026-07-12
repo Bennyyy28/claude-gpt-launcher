@@ -4,6 +4,40 @@ import XCTest
 @testable import ClaudeGPTMCP
 
 final class LauncherTests: XCTestCase {
+    func testAppBackendPrefersInstalledHelperAndFallsBackToBundle() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("claude-gpt-backend-test-\(UUID().uuidString)")
+        let home = root.appendingPathComponent("home")
+        let resources = root.appendingPathComponent("Resources")
+        let installed = home.appendingPathComponent(".local/bin/claude-gpt")
+        let bundled = resources.appendingPathComponent("backend/claude-gpt")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: bundled.deletingLastPathComponent(), withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: bundled.path, contents: Data("#!/bin/zsh\n".utf8))
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: bundled.path)
+
+        XCTAssertEqual(TerminalLauncher.backendURL(homeDirectory: home, bundleResourceURL: resources), bundled)
+
+        try FileManager.default.createDirectory(at: installed.deletingLastPathComponent(), withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: installed.path, contents: Data("#!/bin/zsh\n".utf8))
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: installed.path)
+        XCTAssertEqual(TerminalLauncher.backendURL(homeDirectory: home, bundleResourceURL: resources), installed)
+    }
+
+    func testMcpBackendFallsBackToBundledHelper() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("claude-gpt-mcp-backend-test-\(UUID().uuidString)")
+        let home = root.appendingPathComponent("home")
+        let executable = root.appendingPathComponent("Resources/mcp-bin/claude-gpt-mcp")
+        let bundled = root.appendingPathComponent("Resources/backend/claude-gpt")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: bundled.deletingLastPathComponent(), withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: bundled.path, contents: Data("#!/bin/zsh\n".utf8))
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: bundled.path)
+
+        XCTAssertEqual(ClaudeHarnessRunner.backendURL(homeDirectory: home, executableURL: executable), bundled)
+    }
+
     func testModelIdentifiersRemainExplicit() {
         XCTAssertEqual(ModelOption.sol.rawValue, "gpt-5.6-sol")
         XCTAssertEqual(ModelOption.terra.rawValue, "gpt-5.6-terra")

@@ -8,7 +8,7 @@ enum TerminalLauncherError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingBackend:
-            "The claude-gpt backend launcher is missing from ~/.local/bin."
+            "The claude-gpt backend launcher is missing from the app and ~/.local/bin."
         case .couldNotWriteCommand(let detail):
             "Could not prepare the Terminal session: \(detail)"
         case .couldNotOpenTerminal(let detail):
@@ -18,13 +18,19 @@ enum TerminalLauncherError: LocalizedError {
 }
 
 enum TerminalLauncher {
-    static var backendURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".local/bin/claude-gpt")
+    static func backendURL(
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+        bundleResourceURL: URL? = Bundle.main.resourceURL
+    ) -> URL? {
+        let installed = homeDirectory.appendingPathComponent(".local/bin/claude-gpt")
+        let bundled = bundleResourceURL?.appendingPathComponent("backend/claude-gpt")
+        return [installed, bundled].compactMap { $0 }.first {
+            FileManager.default.isExecutableFile(atPath: $0.path)
+        }
     }
 
     static func launch(project: ProjectInfo, model: ModelOption) throws {
-        guard FileManager.default.isExecutableFile(atPath: backendURL.path) else {
+        guard let backendURL = backendURL() else {
             throw TerminalLauncherError.missingBackend
         }
 

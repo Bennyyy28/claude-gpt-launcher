@@ -13,6 +13,8 @@ APP_BINARY="$APP_MACOS/$APP_PROCESS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
 MCP_DIR="$APP_RESOURCES/mcp-bin"
 MCP_BINARY="$MCP_DIR/claude-gpt-mcp"
+BACKEND_DIR="$APP_RESOURCES/backend"
+BACKEND_BINARY="$BACKEND_DIR/claude-gpt"
 INSTALL_BUNDLE="$HOME/Applications/$APP_NAME.app"
 
 cd "$ROOT_DIR"
@@ -22,17 +24,18 @@ BUILD_BINARY="$(/usr/bin/swift build --show-bin-path)/$APP_PROCESS"
 BUILD_MCP_BINARY="$(/usr/bin/swift build --show-bin-path)/ClaudeGPTMCP"
 
 /bin/rm -rf "$APP_BUNDLE"
-/bin/mkdir -p "$APP_MACOS" "$MCP_DIR"
+/bin/mkdir -p "$APP_MACOS" "$MCP_DIR" "$BACKEND_DIR"
 /bin/cp "$BUILD_BINARY" "$APP_BINARY"
 /bin/cp "$BUILD_MCP_BINARY" "$MCP_BINARY"
 /bin/cp "$ROOT_DIR/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
 /bin/cp "$ROOT_DIR/Resources/AppIcon.icns" "$APP_RESOURCES/AppIcon.icns"
-/bin/chmod 755 "$APP_BINARY" "$MCP_BINARY"
+/bin/cp "$ROOT_DIR/script/claude-gpt" "$BACKEND_BINARY"
+/bin/chmod 755 "$APP_BINARY" "$MCP_BINARY" "$BACKEND_BINARY"
 /usr/bin/xattr -cr "$APP_BUNDLE"
 /usr/bin/codesign --force --deep --sign - "$APP_BUNDLE"
 
 open_app() {
-  /usr/bin/open -n "$APP_BUNDLE"
+  /usr/bin/open "$APP_BUNDLE"
 }
 
 case "$MODE" in
@@ -63,10 +66,14 @@ case "$MODE" in
         echo "refusing to replace unrelated application: $INSTALL_BUNDLE" >&2
         exit 1
       fi
+      if /usr/bin/pgrep -x "$APP_PROCESS" >/dev/null; then
+        echo "refusing to replace a running $APP_NAME app; quit it and retry" >&2
+        exit 1
+      fi
     fi
     /bin/rm -rf "$INSTALL_BUNDLE"
     /usr/bin/ditto "$APP_BUNDLE" "$INSTALL_BUNDLE"
-    /usr/bin/open -n "$INSTALL_BUNDLE"
+    /usr/bin/open "$INSTALL_BUNDLE"
     ;;
   *)
     echo "usage: $0 [run|--debug|--logs|--telemetry|--verify|--install]" >&2

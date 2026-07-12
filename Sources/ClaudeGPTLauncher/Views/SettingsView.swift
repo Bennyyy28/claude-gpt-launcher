@@ -4,7 +4,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             LabeledContent("Backend launcher") {
-                Text("~/.local/bin/claude-gpt")
+                Text(TerminalLauncher.backendURL()?.path ?? "Not found")
                     .font(.body.monospaced())
             }
             LabeledContent("Proxy address") {

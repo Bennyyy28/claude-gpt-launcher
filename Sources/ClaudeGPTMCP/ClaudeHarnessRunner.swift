@@ -58,9 +58,7 @@ enum ClaudeHarnessRunner {
             projectPath,
             allowProtectedRepository: allowProtectedRepository
         )
-        let backend = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".local/bin/claude-gpt")
-        guard FileManager.default.isExecutableFile(atPath: backend.path) else {
+        guard let backend = backendURL() else {
             throw ClaudeHarnessRunnerError.backendMissing
         }
 
@@ -104,6 +102,21 @@ enum ClaudeHarnessRunner {
             projectPath: projectURL.path,
             output: String(result.output.prefix(50_000))
         )
+    }
+
+    static func backendURL(
+        homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
+        executableURL: URL = URL(fileURLWithPath: CommandLine.arguments[0])
+    ) -> URL? {
+        let installed = homeDirectory.appendingPathComponent(".local/bin/claude-gpt")
+        let resources = executableURL.standardizedFileURL
+            .resolvingSymlinksInPath()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let bundled = resources.appendingPathComponent("backend/claude-gpt")
+        return [installed, bundled].first {
+            FileManager.default.isExecutableFile(atPath: $0.path)
+        }
     }
 
     static func editsEnabled(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
