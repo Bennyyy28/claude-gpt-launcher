@@ -1,0 +1,75 @@
+#!/bin/zsh
+set -euo pipefail
+
+readonly PROXY_PORT="${CLAUDE_GPT_PORT:-18765}"
+readonly PROXY_URL="http://127.0.0.1:$PROXY_PORT"
+readonly PROXY_LOG="${TMPDIR:-/tmp}/claude-gpt-proxy-$PROXY_PORT.log"
+readonly MODEL="${CLAUDE_GPT_MODEL:-gpt-5.6-sol}"
+readonly SMALL_MODEL="${CLAUDE_GPT_SMALL_MODEL:-gpt-5.6-luna}"
+
+target="${1:-$PWD}"
+if [[ $# -gt 0 ]]; then
+  shift
+fi
+
+for dependency in git curl claude claude-code-proxy; do
+  if ! command -v "$dependency" >/dev/null 2>&1; then
+    print -u2 -- "claude-gpt: missing required command: $dependency"
+    exit 127
+  fi
+done
+
+if [[ ! -d "$target" ]]; then
+  print -u2 -- "claude-gpt: target directory does not exist: $target"
+  exit 2
+fi
+
+target="$(cd "$target" && pwd -P)"
+if ! git -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  print -u2 -- "claude-gpt: target must be a Git working tree: $target"
+  exit 2
+fi
+
+umask 077
+proxy_started=0
+proxy_pid=""
+
+cleanup() {
+  if [[ "$proxy_started" == 1 && -n "$proxy_pid" ]]; then
+    kill "$proxy_pid" 2>/dev/null || true
+    wait "$proxy_pid" 2>/dev/null || true
+  fi
+  unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN ANTHROPIC_MODEL
+  unset ANTHROPIC_SMALL_FAST_MODEL CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
+  unset CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK
+}
+trap cleanup EXIT INT TERM
+
+if ! curl --fail --silent "$PROXY_URL/healthz" >/dev/null 2>&1; then
+  : >| "$PROXY_LOG"
+  PORT="$PROXY_PORT" claude-code-proxy serve >"$PROXY_LOG" 2>&1 &
+  proxy_pid=$!
+  proxy_started=1
+
+  for _ in {1..50}; do
+    if curl --fail --silent "$PROXY_URL/healthz" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.1
+  done
+
+  if ! curl --fail --silent "$PROXY_URL/healthz" >/dev/null 2>&1; then
+    print -u2 -- "claude-gpt: proxy failed to start; see $PROXY_LOG"
+    exit 1
+  fi
+fi
+
+export ANTHROPIC_BASE_URL="$PROXY_URL"
+export ANTHROPIC_AUTH_TOKEN="unused"
+export ANTHROPIC_MODEL="$MODEL"
+export ANTHROPIC_SMALL_FAST_MODEL="$SMALL_MODEL"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+export CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK=1
+
+cd "$target"
+claude --model "$MODEL" "$@"
