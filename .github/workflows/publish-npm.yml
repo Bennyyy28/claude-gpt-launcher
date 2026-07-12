@@ -19,13 +19,28 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
+      - name: Check whether this version already exists
+        id: package
+        run: |
+          name="$(node -p "require('./package.json').name")"
+          version="$(node -p "require('./package.json').version")"
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Install supported npm CLI
+        if: steps.package.outputs.exists != 'true'
         run: npm install --global npm@11.15.0
       - name: Install dependencies
+        if: steps.package.outputs.exists != 'true'
         run: npm ci
       - name: Test
+        if: steps.package.outputs.exists != 'true'
         run: npm test
       - name: Verify package contents
+        if: steps.package.outputs.exists != 'true'
         run: npm pack --dry-run
       - name: Publish with provenance
+        if: steps.package.outputs.exists != 'true'
         run: npm publish --access public
