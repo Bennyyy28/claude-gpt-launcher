@@ -10,6 +10,8 @@
   },
   "files": [
     ".codex/skills/claude-gpt-launcher",
+    "Claude-GPT-Launcher-threat-model.md",
+    "CONTRIBUTING.md",
     "SECURITY.md",
     "LICENSE",
     "Package.swift",
