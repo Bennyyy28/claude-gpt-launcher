@@ -19,3 +19,26 @@ import Testing
     #expect(MCPProjectGuard.isProtectedRemote("https://github.com/example/private-app.git", patterns: patterns))
     #expect(!MCPProjectGuard.isProtectedRemote("https://github.com/example/public-app.git", patterns: patterns))
 }
+
+@Test func repositoryPathMustRemainInsideHomeBoundary() {
+    #expect(MCPProjectGuard.isPath("/Users/example/project", inside: "/Users/example"))
+    #expect(!MCPProjectGuard.isPath("/Users/example-escape/project", inside: "/Users/example"))
+    #expect(!MCPProjectGuard.isPath("/private/etc", inside: "/Users/example"))
+}
+
+@Test func symlinkCannotEscapeHomeBoundary() throws {
+    let fileManager = FileManager.default
+    let link = fileManager.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Caches/claude-gpt-test-\(UUID().uuidString)")
+    try fileManager.createSymbolicLink(at: link, withDestinationURL: URL(fileURLWithPath: "/private/tmp"))
+    defer { try? fileManager.removeItem(at: link) }
+
+    #expect(throws: MCPProjectGuardError.self) {
+        _ = try MCPProjectGuard.validate(link.path)
+    }
+}
+
+@Test func mcpEditsRequireInstallTimeOptIn() {
+    #expect(!ClaudeHarnessRunner.editsEnabled(environment: [:]))
+    #expect(ClaudeHarnessRunner.editsEnabled(environment: ["CLAUDE_GPT_ENABLE_MCP_EDITS": "1"]))
+}

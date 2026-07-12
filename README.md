@@ -15,6 +15,22 @@ No OAuth token or API key belongs in this repository or in an environment file.
 
 ## Install
 
+Once published to npm, the shortest installation path is:
+
+```zsh
+npx claude-gpt-launcher install
+npx claude-gpt-launcher mcp install --enable-edits
+```
+
+For a permanent global command:
+
+```zsh
+npm install --global claude-gpt-launcher
+claude-gpt-launcher install
+```
+
+For a source checkout:
+
 ```zsh
 ./script/install_backend.sh
 ./script/build_and_run.sh --install
@@ -23,6 +39,12 @@ No OAuth token or API key belongs in this repository or in an environment file.
 The first command installs the reviewed launcher helper at
 `~/.local/bin/claude-gpt`. The second builds and installs the macOS app under
 `~/Applications`.
+
+Verify prerequisites and installation state with stable JSON output:
+
+```zsh
+claude-gpt-launcher doctor --json
+```
 
 ## Use
 
@@ -62,8 +84,18 @@ codex mcp add claude-gpt-harness -- \
   "$HOME/Applications/Claude GPT.app/Contents/Resources/mcp-bin/claude-gpt-mcp"
 ```
 
+MCP editing is disabled by default. Enable it only after reviewing the trust
+boundary:
+
+```zsh
+claude-gpt-launcher mcp install --enable-edits
+```
+
 ## Security boundary
 
 The app never stores repository content or OAuth tokens. The proxy stores its
-credential in macOS Keychain and listens on `127.0.0.1:18765` only. This remains
-a third-party, unsupported OpenAI client configuration.
+credential in macOS Keychain and listens on a randomly selected localhost port
+only. Claude Code can normally read files outside its working directory; the
+MCP bridge adds deny rules for common credential directories, but this is not an
+OS sandbox. Use a disposable account or container for untrusted repositories.
+This remains a third-party, unsupported OpenAI client configuration.

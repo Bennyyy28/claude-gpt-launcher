@@ -15,23 +15,21 @@ MCP_DIR="$APP_RESOURCES/mcp-bin"
 MCP_BINARY="$MCP_DIR/claude-gpt-mcp"
 INSTALL_BUNDLE="$HOME/Applications/$APP_NAME.app"
 
-pkill -x "$APP_PROCESS" >/dev/null 2>&1 || true
-
 cd "$ROOT_DIR"
-swift build
-swift test
-BUILD_BINARY="$(swift build --show-bin-path)/$APP_PROCESS"
-BUILD_MCP_BINARY="$(swift build --show-bin-path)/ClaudeGPTMCP"
+/usr/bin/swift build
+/usr/bin/swift test
+BUILD_BINARY="$(/usr/bin/swift build --show-bin-path)/$APP_PROCESS"
+BUILD_MCP_BINARY="$(/usr/bin/swift build --show-bin-path)/ClaudeGPTMCP"
 
-rm -rf "$APP_BUNDLE"
-mkdir -p "$APP_MACOS" "$MCP_DIR"
-cp "$BUILD_BINARY" "$APP_BINARY"
-cp "$BUILD_MCP_BINARY" "$MCP_BINARY"
-cp "$ROOT_DIR/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
-cp "$ROOT_DIR/Resources/AppIcon.icns" "$APP_RESOURCES/AppIcon.icns"
-chmod 755 "$APP_BINARY" "$MCP_BINARY"
-xattr -cr "$APP_BUNDLE"
-codesign --force --deep --sign - "$APP_BUNDLE"
+/bin/rm -rf "$APP_BUNDLE"
+/bin/mkdir -p "$APP_MACOS" "$MCP_DIR"
+/bin/cp "$BUILD_BINARY" "$APP_BINARY"
+/bin/cp "$BUILD_MCP_BINARY" "$MCP_BINARY"
+/bin/cp "$ROOT_DIR/Resources/Info.plist" "$APP_CONTENTS/Info.plist"
+/bin/cp "$ROOT_DIR/Resources/AppIcon.icns" "$APP_RESOURCES/AppIcon.icns"
+/bin/chmod 755 "$APP_BINARY" "$MCP_BINARY"
+/usr/bin/xattr -cr "$APP_BUNDLE"
+/usr/bin/codesign --force --deep --sign - "$APP_BUNDLE"
 
 open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
@@ -58,9 +56,16 @@ case "$MODE" in
     pgrep -x "$APP_PROCESS" >/dev/null
     ;;
   --install|install)
-    mkdir -p "$HOME/Applications"
-    rm -rf "$INSTALL_BUNDLE"
-    ditto "$APP_BUNDLE" "$INSTALL_BUNDLE"
+    /bin/mkdir -p "$HOME/Applications"
+    if [[ -e "$INSTALL_BUNDLE" ]]; then
+      EXISTING_IDENTIFIER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INSTALL_BUNDLE/Contents/Info.plist" 2>/dev/null || true)"
+      if [[ "$EXISTING_IDENTIFIER" != "app.claudegpt.launcher" ]]; then
+        echo "refusing to replace unrelated application: $INSTALL_BUNDLE" >&2
+        exit 1
+      fi
+    fi
+    /bin/rm -rf "$INSTALL_BUNDLE"
+    /usr/bin/ditto "$APP_BUNDLE" "$INSTALL_BUNDLE"
     /usr/bin/open -n "$INSTALL_BUNDLE"
     ;;
   *)

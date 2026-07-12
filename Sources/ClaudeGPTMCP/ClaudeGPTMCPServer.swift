@@ -76,7 +76,7 @@ enum ClaudeGPTMCPServer {
         return [
             "name": name,
             "description": edits
-                ? "Run Claude Code's harness to edit files in a validated Git repository. Shell and network tools are unavailable. Configured protected repositories require explicit opt-in."
+                ? "Run Claude Code's harness to edit files in a validated Git repository when the MCP registration explicitly enables edits. Shell and network tools are unavailable. Configured protected repositories require explicit opt-in."
                 : "Ask Claude Code's harness for a read-only repository plan or review. No edits, shell, or network tools are available. Configured protected repositories require explicit opt-in.",
             "inputSchema": [
                 "type": "object",

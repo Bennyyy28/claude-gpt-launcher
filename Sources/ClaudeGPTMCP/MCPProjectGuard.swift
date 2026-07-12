@@ -22,8 +22,8 @@ enum MCPProjectGuardError: LocalizedError {
 
 enum MCPProjectGuard {
     static func validate(_ requestedPath: String, allowProtectedRepository: Bool = false) throws -> URL {
-        let selectedURL = URL(fileURLWithPath: requestedPath).standardizedFileURL
-        let homeURL = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL
+        let selectedURL = URL(fileURLWithPath: requestedPath).standardizedFileURL.resolvingSymlinksInPath()
+        let homeURL = FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.resolvingSymlinksInPath()
         let selectedPath = selectedURL.path
         let homePrefix = homeURL.path.hasSuffix("/") ? homeURL.path : homeURL.path + "/"
 
@@ -41,7 +41,10 @@ enum MCPProjectGuard {
 
         let rootURL = URL(
             fileURLWithPath: rootResult.output.trimmingCharacters(in: .whitespacesAndNewlines)
-        ).standardizedFileURL
+        ).standardizedFileURL.resolvingSymlinksInPath()
+        guard isPath(rootURL.path, inside: homeURL.path) else {
+            throw MCPProjectGuardError.outsideHome
+        }
         let remote = try runGit(["-C", rootURL.path, "remote", "get-url", "origin"])
         let protectedPatterns = ProcessInfo.processInfo.environment["CLAUDE_GPT_PROTECTED_REMOTES"]?
             .split(separator: ",")
@@ -59,6 +62,10 @@ enum MCPProjectGuard {
     static func isProtectedRemote(_ remote: String, patterns: [String]) -> Bool {
         let normalized = remote.lowercased()
         return patterns.contains { normalized.contains($0.lowercased()) }
+    }
+
+    static func isPath(_ path: String, inside root: String) -> Bool {
+        path == root || path.hasPrefix(root.hasSuffix("/") ? root : root + "/")
     }
 
     private static func runGit(_ arguments: [String]) throws -> CommandResult {

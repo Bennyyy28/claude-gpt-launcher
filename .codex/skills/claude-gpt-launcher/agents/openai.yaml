@@ -1,0 +1,4 @@
+interface:
+  display_name: "Claude GPT Launcher"
+  short_description: "Install and operate the local harness bridge"
+  default_prompt: "Use $claude-gpt-launcher to verify and manage the local Claude GPT launcher."

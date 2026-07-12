@@ -17,6 +17,8 @@ enum ClaudeHarnessRunnerError: LocalizedError {
     case editsNotConfirmed
     case unsupportedModel
     case backendMissing
+    case editsDisabled
+    case promptTooLong
     case executionFailed(String)
 
     var errorDescription: String? {
@@ -25,6 +27,8 @@ enum ClaudeHarnessRunnerError: LocalizedError {
         case .editsNotConfirmed: "Set confirmEdits to true to use the editing tool."
         case .unsupportedModel: "Model must be gpt-5.6-sol, gpt-5.6-terra, or gpt-5.6-luna."
         case .backendMissing: "The claude-gpt backend launcher is missing."
+        case .editsDisabled: "MCP edits are disabled. Re-register with CLAUDE_GPT_ENABLE_MCP_EDITS=1 after reviewing the risk."
+        case .promptTooLong: "The MCP prompt exceeds the 20,000-character limit."
         case .executionFailed(let detail): "Claude Code failed: \(detail)"
         }
     }
@@ -43,8 +47,12 @@ enum ClaudeHarnessRunner {
     ) throws -> ClaudeHarnessResult {
         let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedPrompt.isEmpty else { throw ClaudeHarnessRunnerError.missingPrompt }
+        guard trimmedPrompt.count <= 20_000 else { throw ClaudeHarnessRunnerError.promptTooLong }
         guard allowedModels.contains(model) else { throw ClaudeHarnessRunnerError.unsupportedModel }
         if mode == .edit && !confirmEdits { throw ClaudeHarnessRunnerError.editsNotConfirmed }
+        if mode == .edit && !editsEnabled() {
+            throw ClaudeHarnessRunnerError.editsDisabled
+        }
 
         let projectURL = try MCPProjectGuard.validate(
             projectPath,
@@ -75,6 +83,8 @@ enum ClaudeHarnessRunner {
                 "--no-session-persistence",
                 "--permission-mode", permissionMode,
                 "--tools", tools,
+                "--disallowedTools", "Read(../**),Read(~/.ssh/**),Read(~/.aws/**),Read(~/.config/**),Read(~/.codex/**),Read(~/.claude/**),Edit(../**),Edit(~/**)",
+                "--max-turns", "20",
                 "--model", model,
                 "-p", scopedPrompt,
             ],
@@ -94,5 +104,9 @@ enum ClaudeHarnessRunner {
             projectPath: projectURL.path,
             output: String(result.output.prefix(50_000))
         )
+    }
+
+    static func editsEnabled(environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
+        environment["CLAUDE_GPT_ENABLE_MCP_EDITS"] == "1"
     }
 }

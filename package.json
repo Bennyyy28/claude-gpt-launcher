@@ -1,0 +1,47 @@
+{
+  "name": "claude-gpt-launcher",
+  "version": "1.0.0",
+  "description": "Install and manage a native macOS Claude Code launcher with a local GPT proxy and Codex MCP bridge.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "claude-gpt-launcher": "npm/cli.mjs",
+    "claude-gpt": "script/claude-gpt"
+  },
+  "files": [
+    ".codex/skills/claude-gpt-launcher",
+    "SECURITY.md",
+    "LICENSE",
+    "Package.swift",
+    "README.md",
+    "Resources",
+    "Sources",
+    "Tests",
+    "npm",
+    "script"
+  ],
+  "scripts": {
+    "test": "node --test npm/cli.test.mjs && swift test",
+    "pack:check": "npm pack --dry-run",
+    "prepublishOnly": "npm test && npm run pack:check"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "claude-code",
+    "codex",
+    "mcp",
+    "macos",
+    "launcher"
+  ]
+}

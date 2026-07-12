@@ -1,9 +1,14 @@
 #!/bin/zsh
+# Installed by claude-gpt-launcher
 set -euo pipefail
 
-readonly PROXY_PORT="${CLAUDE_GPT_PORT:-18765}"
+if [[ -n "${CLAUDE_GPT_PORT:-}" ]]; then
+  readonly PROXY_PORT="$CLAUDE_GPT_PORT"
+else
+  readonly PROXY_PORT="$((20000 + RANDOM % 30000))"
+fi
 readonly PROXY_URL="http://127.0.0.1:$PROXY_PORT"
-readonly PROXY_LOG="${TMPDIR:-/tmp}/claude-gpt-proxy-$PROXY_PORT.log"
+readonly PROXY_LOG="$(/usr/bin/mktemp -t claude-gpt-proxy.XXXXXX)"
 readonly MODEL="${CLAUDE_GPT_MODEL:-gpt-5.6-sol}"
 readonly SMALL_MODEL="${CLAUDE_GPT_SMALL_MODEL:-gpt-5.6-luna}"
 
@@ -12,8 +17,10 @@ if [[ $# -gt 0 ]]; then
   shift
 fi
 
+typeset -A executables
 for dependency in git curl claude claude-code-proxy; do
-  if ! command -v "$dependency" >/dev/null 2>&1; then
+  executables[$dependency]="$(whence -p "$dependency" 2>/dev/null || true)"
+  if [[ -z "${executables[$dependency]}" ]]; then
     print -u2 -- "claude-gpt: missing required command: $dependency"
     exit 127
   fi
@@ -25,7 +32,7 @@ if [[ ! -d "$target" ]]; then
 fi
 
 target="$(cd "$target" && pwd -P)"
-if ! git -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+if ! "${executables[git]}" -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   print -u2 -- "claude-gpt: target must be a Git working tree: $target"
   exit 2
 fi
@@ -42,26 +49,36 @@ cleanup() {
   unset ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN ANTHROPIC_MODEL
   unset ANTHROPIC_SMALL_FAST_MODEL CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
   unset CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK
+  if [[ "${CLAUDE_GPT_KEEP_LOG:-0}" != "1" ]]; then
+    /bin/rm -f -- "$PROXY_LOG"
+  fi
 }
 trap cleanup EXIT INT TERM
 
-if ! curl --fail --silent "$PROXY_URL/healthz" >/dev/null 2>&1; then
-  : >| "$PROXY_LOG"
-  PORT="$PROXY_PORT" claude-code-proxy serve >"$PROXY_LOG" 2>&1 &
-  proxy_pid=$!
-  proxy_started=1
+if "${executables[curl]}" --fail --silent "$PROXY_URL/healthz" >/dev/null 2>&1; then
+  print -u2 -- "claude-gpt: port $PROXY_PORT is already in use; choose another CLAUDE_GPT_PORT"
+  exit 1
+fi
 
-  for _ in {1..50}; do
-    if curl --fail --silent "$PROXY_URL/healthz" >/dev/null 2>&1; then
-      break
-    fi
-    sleep 0.1
-  done
+: >| "$PROXY_LOG"
+PORT="$PROXY_PORT" "${executables[claude-code-proxy]}" serve >"$PROXY_LOG" 2>&1 &
+proxy_pid=$!
+proxy_started=1
 
-  if ! curl --fail --silent "$PROXY_URL/healthz" >/dev/null 2>&1; then
-    print -u2 -- "claude-gpt: proxy failed to start; see $PROXY_LOG"
-    exit 1
+for _ in {1..50}; do
+  if "${executables[curl]}" --fail --silent "$PROXY_URL/healthz" >/dev/null 2>&1; then
+    break
   fi
+  sleep 0.1
+done
+
+if ! "${executables[curl]}" --fail --silent "$PROXY_URL/healthz" >/dev/null 2>&1; then
+  if [[ "${CLAUDE_GPT_KEEP_LOG:-0}" == "1" ]]; then
+    print -u2 -- "claude-gpt: proxy failed to start; see $PROXY_LOG"
+  else
+    print -u2 -- "claude-gpt: proxy failed to start; set CLAUDE_GPT_KEEP_LOG=1 to retain its private log"
+  fi
+  exit 1
 fi
 
 export ANTHROPIC_BASE_URL="$PROXY_URL"
@@ -72,4 +89,4 @@ export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 export CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK=1
 
 cd "$target"
-claude --model "$MODEL" "$@"
+"${executables[claude]}" --model "$MODEL" "$@"
